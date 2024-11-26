@@ -18,7 +18,7 @@ func NewCatalog(reader io.Reader) (catalog *oscal112.Catalog, err error) {
 	dec := json.NewDecoder(reader)
 	dec.DisallowUnknownFields()
 	if err = dec.Decode(&oscalModels); err != nil {
-		return nil, err
+		return catalog, err
 	}
 
 	return oscalModels.Catalog, nil
@@ -30,7 +30,7 @@ func NewProfile(reader io.Reader) (profile *oscal112.Profile, err error) {
 	dec := json.NewDecoder(reader)
 	dec.DisallowUnknownFields()
 	if err = dec.Decode(&oscalModels); err != nil {
-		return nil, err
+		return profile, err
 	}
 
 	return oscalModels.Profile, nil
@@ -42,7 +42,7 @@ func NewComponentDefinition(reader io.Reader) (componentDefinition *oscal112.Com
 	dec := json.NewDecoder(reader)
 	dec.DisallowUnknownFields()
 	if err = dec.Decode(&oscalModels); err != nil {
-		return nil, err
+		return componentDefinition, err
 	}
 
 	return oscalModels.ComponentDefinition, nil
@@ -54,7 +54,7 @@ func NewSystemSecurityPlan(reader io.Reader) (systemSecurityPlan *oscal112.Syste
 	dec := json.NewDecoder(reader)
 	dec.DisallowUnknownFields()
 	if err = dec.Decode(&oscalModels); err != nil {
-		return nil, err
+		return systemSecurityPlan, err
 	}
 
 	return oscalModels.SystemSecurityPlan, nil
@@ -66,7 +66,7 @@ func NewAssessmentPlan(reader io.Reader) (assessmentPlan *oscal112.AssessmentPla
 	dec := json.NewDecoder(reader)
 	dec.DisallowUnknownFields()
 	if err = dec.Decode(&oscalModels); err != nil {
-		return nil, err
+		return assessmentPlan, err
 	}
 
 	return oscalModels.AssessmentPlan, nil
@@ -78,7 +78,7 @@ func NewAssessmentResults(reader io.Reader) (assessmentResult *oscal112.Assessme
 	dec := json.NewDecoder(reader)
 	dec.DisallowUnknownFields()
 	if err = dec.Decode(&oscalModels); err != nil {
-		return nil, err
+		return assessmentResult, err
 	}
 
 	return oscalModels.AssessmentResults, nil
@@ -90,7 +90,7 @@ func NewPOAM(reader io.Reader) (pOAM *oscal112.PlanOfActionAndMilestones, err er
 	dec := json.NewDecoder(reader)
 	dec.DisallowUnknownFields()
 	if err = dec.Decode(&oscalModels); err != nil {
-		return nil, err
+		return pOAM, err
 	}
 
 	return oscalModels.PlanOfActionAndMilestones, nil
