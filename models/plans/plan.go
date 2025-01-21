@@ -84,7 +84,7 @@ func GenerateAssessmentPlan(ctx context.Context, components []components.Compone
 	var subjectSelectors []oscaltypes112.SelectSubjectById
 	for _, comp := range components {
 		compTitle := comp.Title()
-		appliedRules, err := settings.ApplyToComponent(ctx, compTitle, memoryStore, implementationSettings)
+		appliedRules, err := settings.ApplyToComponent(ctx, compTitle, memoryStore, implementationSettings.AllSettings())
 		if err != nil {
 			return nil, fmt.Errorf("error getting applied rules for component %s: %w", compTitle, err)
 		}
