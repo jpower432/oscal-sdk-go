@@ -14,6 +14,7 @@ import (
 	oscalTypes "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-2"
 	"github.com/stretchr/testify/require"
 
+	"github.com/oscal-compass/oscal-sdk-go/extensions"
 	"github.com/oscal-compass/oscal-sdk-go/generators"
 	"github.com/oscal-compass/oscal-sdk-go/models/components"
 	"github.com/oscal-compass/oscal-sdk-go/settings"
@@ -27,7 +28,7 @@ func TestGenerateAssessmentPlan(t *testing.T) {
 	tests := []struct {
 		name            string
 		inputComponents []components.Component
-		inputSetting    *settings.ImplementationSettings
+		inputSetting    settings.ImplementationSettings
 		inputOptions    []GenerateOption
 		assertFunc      func(*testing.T, *oscalTypes.AssessmentPlan)
 		expError        string
@@ -79,6 +80,41 @@ func TestGenerateAssessmentPlan(t *testing.T) {
 	}
 }
 
+func TestActivities(t *testing.T) {
+	compDef := readCompDef(t)
+	defaultSettings := prepSettings(t, compDef)
+
+	testRuleSets := []extensions.RuleSet{
+		{
+			Rule: extensions.Rule{
+				ID:          "etcd_cert_file",
+				Description: "Description of Rule",
+				Parameter:   nil,
+			},
+		},
+	}
+
+	gotActivities, err := Activities(testRuleSets, defaultSettings)
+	require.NoError(t, err)
+
+	require.Len(t, gotActivities, 1)
+	require.Equal(t, gotActivities[0].Description, "Description of Rule")
+	require.Equal(t, gotActivities[0].Title, "etcd_cert_file")
+
+	expectedControls := &oscalTypes.ReviewedControls{
+		ControlSelections: []oscalTypes.AssessedControls{
+			{
+				IncludeControls: &[]oscalTypes.AssessedControlsSelectControlById{
+					{
+						ControlId: "CIS-2.1",
+					},
+				},
+			},
+		},
+	}
+	require.Equal(t, expectedControls, gotActivities[0].RelatedControls)
+
+}
 func readCompDef(t *testing.T) oscalTypes.ComponentDefinition {
 	testDataPath := filepath.Join("../../testdata", "component-definition-test.json")
 
@@ -100,7 +136,7 @@ func prepComponents(t *testing.T, definition oscalTypes.ComponentDefinition) []c
 	return comps
 }
 
-func prepSettings(t *testing.T, definition oscalTypes.ComponentDefinition) *settings.ImplementationSettings {
+func prepSettings(t *testing.T, definition oscalTypes.ComponentDefinition) settings.ImplementationSettings {
 	var allImplementations []oscalTypes.ControlImplementationSet
 	for _, component := range *definition.Components {
 		if component.ControlImplementations == nil {
@@ -110,5 +146,5 @@ func prepSettings(t *testing.T, definition oscalTypes.ComponentDefinition) *sett
 	}
 	impSettings, err := settings.Framework("cis", allImplementations)
 	require.NoError(t, err)
-	return impSettings
+	return *impSettings
 }

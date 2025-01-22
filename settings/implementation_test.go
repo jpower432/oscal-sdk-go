@@ -15,6 +15,7 @@ import (
 
 	"github.com/oscal-compass/oscal-sdk-go/extensions"
 	"github.com/oscal-compass/oscal-sdk-go/generators"
+	"github.com/oscal-compass/oscal-sdk-go/internal/set"
 )
 
 func TestMerge(t *testing.T) {
@@ -101,6 +102,29 @@ func TestMerge(t *testing.T) {
 			c.assertFunc(t, testSettings)
 		})
 	}
+}
+
+func TestImplementationSettings_Controls(t *testing.T) {
+	testSettings := prepSettings(t)
+	expectedControlIds := []string{"CIS-2.1"}
+	gotControlsIds := testSettings.AllControls()
+	require.Equal(t, expectedControlIds, gotControlsIds)
+
+	gotControlIds, err := testSettings.ApplicableControls("etcd_cert_file")
+	require.NoError(t, err)
+	require.Equal(t, expectedControlIds, gotControlIds)
+
+	gotSettings, err := testSettings.ByControlID("CIS-2.1")
+	require.NoError(t, err)
+	expectedSettings := Settings{
+		mappedRules: set.Set[string]{
+			"etcd_cert_file": struct{}{},
+			"etcd_key_file":  struct{}{},
+		},
+		selectedParameters: map[string]string{},
+	}
+
+	require.Equal(t, expectedSettings, gotSettings)
 }
 
 func prepSettings(t *testing.T) *ImplementationSettings {

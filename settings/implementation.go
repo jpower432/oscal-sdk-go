@@ -64,6 +64,15 @@ func (i *ImplementationSettings) AllSettings() Settings {
 	return i.settings
 }
 
+// AllControls returns a list of control ids found in the control implementation.
+func (i *ImplementationSettings) AllControls() []string {
+	var allControls []string
+	for controlId := range i.implementedReqSettings {
+		allControls = append(allControls, controlId)
+	}
+	return allControls
+}
+
 // ByControlID returns the individual requirement settings for a given control id in the
 // control implementation.
 func (i *ImplementationSettings) ByControlID(controlId string) (Settings, error) {

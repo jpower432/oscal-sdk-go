@@ -14,7 +14,6 @@ import (
 	oscaltypes112 "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-2"
 
 	"github.com/oscal-compass/oscal-sdk-go/extensions"
-	"github.com/oscal-compass/oscal-sdk-go/internal/set"
 	"github.com/oscal-compass/oscal-sdk-go/models"
 	"github.com/oscal-compass/oscal-sdk-go/models/components"
 	"github.com/oscal-compass/oscal-sdk-go/rules"
@@ -59,7 +58,7 @@ func WithImport(importSSP string) GenerateOption {
 
 // GenerateAssessmentPlan generates an AssessmentPlan for a set of Components and implementationSettings. The chosen inputs allow an Assessment Plan to be generated from
 // a set of OSCAL Component Definitions or a System Security Plan.
-func GenerateAssessmentPlan(ctx context.Context, components []components.Component, implementationSettings *settings.ImplementationSettings, opts ...GenerateOption) (*oscaltypes112.AssessmentPlan, error) {
+func GenerateAssessmentPlan(ctx context.Context, components []components.Component, implementationSettings settings.ImplementationSettings, opts ...GenerateOption) (*oscaltypes112.AssessmentPlan, error) {
 	options := generateOpts{}
 	options.defaults()
 	for _, opt := range opts {
@@ -88,7 +87,7 @@ func GenerateAssessmentPlan(ctx context.Context, components []components.Compone
 		if err != nil {
 			return nil, fmt.Errorf("error getting applied rules for component %s: %w", compTitle, err)
 		}
-		componentActivities, err := Activities(appliedRules, *implementationSettings)
+		componentActivities, err := Activities(appliedRules, implementationSettings)
 		if err != nil {
 			return nil, fmt.Errorf("error generating assessment activities for component %s: %w", compTitle, err)
 		}
@@ -130,7 +129,7 @@ func GenerateAssessmentPlan(ctx context.Context, components []components.Compone
 			},
 		},
 		LocalDefinitions: &localDefinitions,
-		ReviewedControls: getAllReviewControls(localDefinitions),
+		ReviewedControls: AllReviewedControls(implementationSettings),
 		AssessmentAssets: &assessmentAssets,
 		Tasks:            &[]oscaltypes112.Task{ruleBasedTask},
 	}
@@ -165,43 +164,22 @@ func Activities(appliedRules []extensions.RuleSet, implementationSettings settin
 	return activities, nil
 }
 
-func getAllReviewControls(localDefinitions oscaltypes112.LocalDefinitions) oscaltypes112.ReviewedControls {
-	var allControls = set.New[string]()
-	var allControlSelections []oscaltypes112.AssessedControlsSelectControlById
-	if localDefinitions.Activities == nil {
-		return oscaltypes112.ReviewedControls{}
-	}
-	for _, activity := range *localDefinitions.Activities {
-		for _, assessedControls := range activity.RelatedControls.ControlSelections {
-			if assessedControls.IncludeControls == nil {
-				continue
-			}
-			for _, control := range *assessedControls.IncludeControls {
-				if allControls.Has(control.ControlId) {
-					continue
-				}
-				allControlSelections = append(allControlSelections, control)
-				allControls.Add(control.ControlId)
-			}
-		}
-	}
-	return oscaltypes112.ReviewedControls{
-		ControlSelections: []oscaltypes112.AssessedControls{
-			{
-				IncludeControls: &allControlSelections,
-			},
-		},
-	}
+func AllReviewedControls(implementationSettings settings.ImplementationSettings) oscaltypes112.ReviewedControls {
+	applicableControls := implementationSettings.AllControls()
+	return createReviewedControls(applicableControls)
 }
 
 // ReviewedControls returns ReviewedControls with controls ids that are associated with a given rule in ImplementationSettings.
-func ReviewedControls(ruleId string, implementationSetting settings.ImplementationSettings) (oscaltypes112.ReviewedControls, error) {
-	var selectedControls []oscaltypes112.AssessedControlsSelectControlById
-	applicableControls, err := implementationSetting.ApplicableControls(ruleId)
+func ReviewedControls(ruleId string, implementationSettings settings.ImplementationSettings) (oscaltypes112.ReviewedControls, error) {
+	applicableControls, err := implementationSettings.ApplicableControls(ruleId)
 	if err != nil {
-		return oscaltypes112.ReviewedControls{}, err
+		return oscaltypes112.ReviewedControls{}, fmt.Errorf("error getting applicable controls for rule %s: %w", ruleId, err)
 	}
+	return createReviewedControls(applicableControls), nil
+}
 
+func createReviewedControls(applicableControls []string) oscaltypes112.ReviewedControls {
+	var selectedControls []oscaltypes112.AssessedControlsSelectControlById
 	for _, control := range applicableControls {
 		selector := oscaltypes112.AssessedControlsSelectControlById{
 			ControlId: control,
@@ -216,7 +194,7 @@ func ReviewedControls(ruleId string, implementationSetting settings.Implementati
 		ControlSelections: []oscaltypes112.AssessedControls{
 			assessedControls,
 		},
-	}, nil
+	}
 }
 
 // AssessmentActivities returns an AssociatedActivity for addition to an Assessment Plan Task.

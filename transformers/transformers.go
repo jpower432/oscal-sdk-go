@@ -35,8 +35,8 @@ func ComponentDefinitionsToAssessmentPlan(ctx context.Context, definitions []osc
 		}
 	}
 	implementationSettings, err := settings.Framework(framework, allImplementations)
-	if err != nil {
+	if err != nil || implementationSettings == nil {
 		return nil, fmt.Errorf("cannot transform definitions for framework %s: %w", framework, err)
 	}
-	return plans.GenerateAssessmentPlan(ctx, allComponents, implementationSettings)
+	return plans.GenerateAssessmentPlan(ctx, allComponents, *implementationSettings)
 }
