@@ -17,6 +17,7 @@ import (
 	"github.com/oscal-compass/oscal-sdk-go/extensions"
 	"github.com/oscal-compass/oscal-sdk-go/generators"
 	"github.com/oscal-compass/oscal-sdk-go/models/components"
+	"github.com/oscal-compass/oscal-sdk-go/rules"
 	"github.com/oscal-compass/oscal-sdk-go/settings"
 )
 
@@ -80,26 +81,29 @@ func TestGenerateAssessmentPlan(t *testing.T) {
 	}
 }
 
-func TestActivities(t *testing.T) {
+func TestActivitiesForComponent(t *testing.T) {
 	compDef := readCompDef(t)
+	testComponents := prepComponents(t, compDef)
 	defaultSettings := prepSettings(t, compDef)
 
-	testRuleSets := []extensions.RuleSet{
-		{
-			Rule: extensions.Rule{
-				ID:          "etcd_cert_file",
-				Description: "Description of Rule",
-				Parameter:   nil,
-			},
-		},
-	}
+	memoryStore := rules.NewMemoryStore()
+	require.NoError(t, memoryStore.IndexAll(testComponents))
 
-	gotActivities, err := Activities(testRuleSets, defaultSettings)
+	gotActivities, err := ActivitiesForComponent(context.TODO(), "TestKubernetes", memoryStore, defaultSettings)
 	require.NoError(t, err)
 
-	require.Len(t, gotActivities, 1)
-	require.Equal(t, gotActivities[0].Description, "Description of Rule")
-	require.Equal(t, gotActivities[0].Title, "etcd_cert_file")
+	require.Len(t, gotActivities, 2)
+
+	var gotActivity oscalTypes.Activity
+	for _, activity := range gotActivities {
+		if activity.Title == "etcd_key_file" {
+			gotActivity = activity
+			break
+		}
+	}
+
+	require.Equal(t, gotActivity.Description, "Ensure that the --key-file argument is set as appropriate")
+	require.Len(t, *gotActivity.Steps, 1)
 
 	expectedControls := &oscalTypes.ReviewedControls{
 		ControlSelections: []oscalTypes.AssessedControls{
@@ -112,7 +116,22 @@ func TestActivities(t *testing.T) {
 			},
 		},
 	}
-	require.Equal(t, expectedControls, gotActivities[0].RelatedControls)
+	require.Equal(t, expectedControls, gotActivity.RelatedControls)
+
+	expectedProps := []oscalTypes.Property{
+		{
+			Name:  "method",
+			Value: "TEST",
+		},
+		{
+			Name:  "file_name",
+			Value: "file_name_override",
+			Ns:    extensions.TrestleNameSpace,
+			Class: "test-parameter",
+		},
+	}
+	require.NotNil(t, gotActivity.Props)
+	require.Equal(t, expectedProps, *gotActivity.Props)
 
 }
 func readCompDef(t *testing.T) oscalTypes.ComponentDefinition {

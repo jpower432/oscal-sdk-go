@@ -36,11 +36,11 @@ func (g *generateOpts) defaults() {
 	g.importSSP = models.DefaultRequiredString
 }
 
-// GenerateOption define an options to tune the behavior of
-// GenerateAssessmentPlan.
+// GenerateOption defines an option to tune the behavior of the
+// GenerateAssessmentPlan function.
 type GenerateOption func(opts *generateOpts)
 
-// WithTitle is a GenerateOptions that sets the AssessmentPlan title
+// WithTitle is a GenerateOption that sets the AssessmentPlan title
 // in the metadata.
 func WithTitle(title string) GenerateOption {
 	return func(opts *generateOpts) {
@@ -48,7 +48,7 @@ func WithTitle(title string) GenerateOption {
 	}
 }
 
-// WithImport is a GenerateOptions that sets the SystemSecurityPlan
+// WithImport is a GenerateOption that sets the SystemSecurityPlan
 // ImportSSP Href value.
 func WithImport(importSSP string) GenerateOption {
 	return func(opts *generateOpts) {
@@ -56,8 +56,8 @@ func WithImport(importSSP string) GenerateOption {
 	}
 }
 
-// GenerateAssessmentPlan generates an AssessmentPlan for a set of Components and implementationSettings. The chosen inputs allow an Assessment Plan to be generated from
-// a set of OSCAL Component Definitions or a System Security Plan.
+// GenerateAssessmentPlan generates an AssessmentPlan for a set of Components and ImplementationSettings. The chosen inputs allow an Assessment Plan to be generated from
+// a set of OSCAL ComponentDefinitions or a SystemSecurityPlan.
 func GenerateAssessmentPlan(ctx context.Context, components []components.Component, implementationSettings settings.ImplementationSettings, opts ...GenerateOption) (*oscaltypes112.AssessmentPlan, error) {
 	options := generateOpts{}
 	options.defaults()
@@ -83,11 +83,7 @@ func GenerateAssessmentPlan(ctx context.Context, components []components.Compone
 	var subjectSelectors []oscaltypes112.SelectSubjectById
 	for _, comp := range components {
 		compTitle := comp.Title()
-		appliedRules, err := settings.ApplyToComponent(ctx, compTitle, memoryStore, implementationSettings.AllSettings())
-		if err != nil {
-			return nil, fmt.Errorf("error getting applied rules for component %s: %w", compTitle, err)
-		}
-		componentActivities, err := Activities(appliedRules, implementationSettings)
+		componentActivities, err := ActivitiesForComponent(ctx, compTitle, memoryStore, implementationSettings)
 		if err != nil {
 			return nil, fmt.Errorf("error generating assessment activities for component %s: %w", compTitle, err)
 		}
@@ -137,19 +133,33 @@ func GenerateAssessmentPlan(ctx context.Context, components []components.Compone
 	return assessmentPlan, nil
 }
 
-// Activities returns a list of activities with the given list of applied rules.
-func Activities(appliedRules []extensions.RuleSet, implementationSettings settings.ImplementationSettings) ([]oscaltypes112.Activity, error) {
+// ActivitiesForComponent returns a list of activities with for a given component Title.
+func ActivitiesForComponent(ctx context.Context, targetComponentID string, store rules.Store, implementationSettings settings.ImplementationSettings) ([]oscaltypes112.Activity, error) {
 	methodProp := oscaltypes112.Property{
 		Name:  "method",
 		Value: "TEST",
 	}
 
-	var activities []oscaltypes112.Activity
+	appliedRules, err := settings.ApplyToComponent(ctx, targetComponentID, store, implementationSettings.AllSettings())
+	if err != nil {
+		return nil, fmt.Errorf("error getting applied rules for component %s: %w", targetComponentID, err)
+	}
 
+	var activities []oscaltypes112.Activity
 	for _, rule := range appliedRules {
 		relatedControls, err := ReviewedControls(rule.Rule.ID, implementationSettings)
 		if err != nil {
 			return nil, err
+		}
+
+		var steps []oscaltypes112.Step
+		for _, check := range rule.Checks {
+			checkStep := oscaltypes112.Step{
+				UUID:        uuid.NewUUID(),
+				Title:       check.ID,
+				Description: check.Description,
+			}
+			steps = append(steps, checkStep)
 		}
 
 		activity := oscaltypes112.Activity{
@@ -158,12 +168,24 @@ func Activities(appliedRules []extensions.RuleSet, implementationSettings settin
 			Props:           &[]oscaltypes112.Property{methodProp},
 			RelatedControls: &relatedControls,
 			Title:           rule.Rule.ID,
+			Steps:           &steps,
+		}
+
+		if rule.Rule.Parameter != nil {
+			parameterProp := oscaltypes112.Property{
+				Name:  rule.Rule.Parameter.ID,
+				Value: rule.Rule.Parameter.Value,
+				Ns:    extensions.TrestleNameSpace,
+				Class: "test-parameter",
+			}
+			*activity.Props = append(*activity.Props, parameterProp)
 		}
 		activities = append(activities, activity)
 	}
 	return activities, nil
 }
 
+// AllReviewedControls returns ReviewControls with all the applicable controls ids in the implementation.
 func AllReviewedControls(implementationSettings settings.ImplementationSettings) oscaltypes112.ReviewedControls {
 	applicableControls := implementationSettings.AllControls()
 	return createReviewedControls(applicableControls)

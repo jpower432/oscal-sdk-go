@@ -44,6 +44,10 @@ func NewImplementationSettings(controlImplementation oscalTypes.ControlImplement
 
 	for _, implementedReq := range controlImplementation.ImplementedRequirements {
 		requirement := NewSettingsFromImplementedRequirement(implementedReq)
+		// Do not add requirements without mapped rules
+		if len(requirement.mappedRules) == 0 {
+			continue
+		}
 		for mappedRule := range requirement.mappedRules {
 			controlSet, ok := implementation.controlsByRules[mappedRule]
 			if !ok {
@@ -107,6 +111,10 @@ func (i *ImplementationSettings) merge(inputImplementation oscalTypes.ControlImp
 		requirement, ok := i.implementedReqSettings[implementedReq.ControlId]
 		if !ok {
 			requirement = NewSettingsFromImplementedRequirement(implementedReq)
+			// Do not add requirements without mapped rules
+			if len(requirement.mappedRules) == 0 {
+				continue
+			}
 			for mappedRule := range requirement.mappedRules {
 				controlSet, ok := i.controlsByRules[mappedRule]
 				if !ok {
