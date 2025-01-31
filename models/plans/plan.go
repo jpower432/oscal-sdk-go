@@ -292,12 +292,20 @@ func AssessmentAssets(comps []components.Component) oscalTypes.AssessmentAssets 
 
 		}
 	}
+
 	// AssessmentPlatforms is a required field under AssessmentAssets
 	assessmentPlatform := oscalTypes.AssessmentPlatform{
-		UUID:           uuid.NewUUID(),
-		Title:          generators.SampleRequiredString,
-		UsesComponents: &usedComponents,
+		UUID:  uuid.NewUUID(),
+		Title: generators.SampleRequiredString,
 	}
+
+	if len(usedComponents) == 0 {
+		return oscalTypes.AssessmentAssets{
+			AssessmentPlatforms: []oscalTypes.AssessmentPlatform{assessmentPlatform},
+		}
+	}
+
+	assessmentPlatform.UsesComponents = &usedComponents
 	assessmentAssets := oscalTypes.AssessmentAssets{
 		Components:          &systemComponents,
 		AssessmentPlatforms: []oscalTypes.AssessmentPlatform{assessmentPlatform},
